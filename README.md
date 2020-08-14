@@ -21,7 +21,7 @@ cd AAML_Bagrat_Ter-Akopyan_Michal_Filipiuk
 
 2. Create an Anaconda virtual environment:
 ```bash
-
+conda create -n iaaml_ncf
 ```
 
 3. Activate the Anaconda virtual environment:

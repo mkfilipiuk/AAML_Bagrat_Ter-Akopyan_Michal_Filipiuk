@@ -29,7 +29,7 @@
 # limitations under the License.
 
 import torch.jit
-from apex.optimizers import FusedAdam
+#from apex.optimizers import FusedAdam
 import os
 import math
 import time
@@ -38,15 +38,16 @@ from argparse import ArgumentParser
 
 import torch
 import torch.nn as nn
+from torch.optim import Adam
 
 import utils
 import dataloading
 from neumf import NeuMF
 
-import dllogger
+#import dllogger
 
-from apex.parallel import DistributedDataParallel as DDP
-from apex import amp
+# from apex.parallel import DistributedDataParallel as DDP
+# from apex import amp
 
 def parse_args():
     parser = ArgumentParser(description="Train a Nerual Collaborative"
@@ -98,7 +99,7 @@ def parse_args():
 
 def init_distributed(args):
     args.world_size = int(os.environ['WORLD_SIZE'])
-    args.distributed = args.world_size > 1
+    args.distributed = False #args.world_size > 1
 
     if args.distributed:
         args.local_rank = int(os.environ['LOCAL_RANK'])
@@ -153,14 +154,15 @@ def main():
     args = parse_args()
     init_distributed(args)
 
-    if args.local_rank == 0:
-        dllogger.init(backends=[dllogger.JSONStreamBackend(verbosity=dllogger.Verbosity.VERBOSE,
-                                                           filename=args.log_path),
-                                dllogger.StdOutBackend(verbosity=dllogger.Verbosity.VERBOSE)])
-    else:
-        dllogger.init(backends=[])
+#     if args.local_rank == 0:
+#         dllogger.init(backends=[dllogger.JSONStreamBackend(verbosity=dllogger.Verbosity.VERBOSE,
+#                                                            filename=args.log_path),
+#                                 dllogger.StdOutBackend(verbosity=dllogger.Verbosity.VERBOSE)])
+#     else:
+#         dllogger.init(backends=[])
 
-    dllogger.log(data=vars(args), step='PARAMETER')
+#     dllogger.log(data=vars(args), step='PARAMETER')
+    print(f"{vars(args)} step='PARAMETER'")
 
     if args.seed is not None:
         torch.manual_seed(args.seed)
@@ -172,13 +174,13 @@ def main():
     # sync workers before timing
     if args.distributed:
         torch.distributed.broadcast(torch.tensor([1], device="cuda"), 0)
-    torch.cuda.synchronize()
+    #torch.cuda.synchronize()
 
     main_start_time = time.time()
 
-    train_ratings = torch.load(args.data+'/train_ratings.pt', map_location=torch.device('cuda:{}'.format(args.local_rank)))
-    test_ratings = torch.load(args.data+'/test_ratings.pt', map_location=torch.device('cuda:{}'.format(args.local_rank)))
-    test_negs = torch.load(args.data+'/test_negatives.pt', map_location=torch.device('cuda:{}'.format(args.local_rank)))
+    train_ratings = torch.load(args.data+'/train_ratings.pt', map_location=torch.device('cpu'))
+    test_ratings = torch.load(args.data+'/test_ratings.pt', map_location=torch.device('cpu'))
+    test_negs = torch.load(args.data+'/test_negatives.pt', map_location=torch.device('cpu'))
 
     valid_negative = test_negs.shape[1]
 
@@ -191,7 +193,7 @@ def main():
     test_users, test_items, dup_mask, real_indices = dataloading.create_test_data(test_ratings, test_negs, args)
 
     # make pytorch memory behavior more consistent later
-    torch.cuda.empty_cache()
+    #torch.cuda.empty_cache()
 
     # Create model
     model = NeuMF(nb_users, nb_items,
@@ -199,20 +201,20 @@ def main():
                   mlp_layer_sizes=args.layers,
                   dropout=args.dropout)
 
-    optimizer = FusedAdam(model.parameters(), lr=args.learning_rate,
+    optimizer = Adam(model.parameters(), lr=args.learning_rate,
                           betas=(args.beta1, args.beta2), eps=args.eps)
 
     criterion = nn.BCEWithLogitsLoss(reduction='none') # use torch.mean() with dim later to avoid copy to host
     # Move model and loss to GPU
-    model = model.cuda()
-    criterion = criterion.cuda()
+#     model = model.cuda()
+#     criterion = criterion.cuda()
 
     if args.amp:
         model, optimizer = amp.initialize(model, optimizer, opt_level="O2",
                                           keep_batchnorm_fp32=False, loss_scale='dynamic')
 
     if args.distributed:
-        model = DDP(model)
+        pass #model = DDP(model)
 
     local_batch = args.batch_size // args.world_size
     traced_criterion = torch.jit.trace(criterion.forward,
@@ -235,8 +237,10 @@ def main():
         eval_size = all_test_users * (valid_negative + 1)
         eval_throughput = eval_size / val_time
 
-        dllogger.log(step=tuple(), data={'best_eval_throughput' : eval_throughput,
-                                         'hr@10' : hr})
+#         dllogger.log(step=tuple(), data={'best_eval_throughput' : eval_throughput,
+#                                          'hr@10' : hr})
+        log_data = data={'best_eval_throughput' : eval_throughput, 'hr@10' : hr}
+        print(log_data)
         return
     
     max_hr = 0
@@ -289,12 +293,19 @@ def main():
         eval_throughput = eval_size / val_time
         eval_throughputs.append(eval_throughput)
 
-        dllogger.log(step=(epoch,),
-                     data = {'train_throughput': train_throughput,
+#         dllogger.log(step=(epoch,),
+#                      data = {'train_throughput': train_throughput,
+#                              'hr@10': hr,
+#                              'train_epoch_time': train_time,
+#                              'validation_epoch_time': val_time,
+#                              'eval_throughput': eval_throughput})
+
+        log_data = {'train_throughput': train_throughput,
                              'hr@10': hr,
                              'train_epoch_time': train_time,
                              'validation_epoch_time': val_time,
-                             'eval_throughput': eval_throughput})
+                             'eval_throughput': eval_throughput}
+        print(log_data)
 
         if hr > max_hr and args.local_rank == 0:
             max_hr = hr
@@ -312,15 +323,24 @@ def main():
                 break
 
     if args.local_rank == 0:
-        dllogger.log(data={'best_train_throughput': max(train_throughputs),
+#         dllogger.log(data={'best_train_throughput': max(train_throughputs),
+#                            'best_eval_throughput': max(eval_throughputs),
+#                            'mean_train_throughput': np.mean(train_throughputs),
+#                            'mean_eval_throughput': np.mean(eval_throughputs),
+#                            'best_accuracy': max_hr,
+#                            'best_epoch': best_epoch,
+#                            'time_to_target': time.time() - main_start_time,
+#                            'time_to_best_model': best_model_timestamp - main_start_time},
+#                      step=tuple())
+        log_data = {'best_train_throughput': max(train_throughputs),
                            'best_eval_throughput': max(eval_throughputs),
                            'mean_train_throughput': np.mean(train_throughputs),
                            'mean_eval_throughput': np.mean(eval_throughputs),
                            'best_accuracy': max_hr,
                            'best_epoch': best_epoch,
                            'time_to_target': time.time() - main_start_time,
-                           'time_to_best_model': best_model_timestamp - main_start_time},
-                     step=tuple())
+                           'time_to_best_model': best_model_timestamp - main_start_time}
+        print(log_data)
 
 
 if __name__ == '__main__':

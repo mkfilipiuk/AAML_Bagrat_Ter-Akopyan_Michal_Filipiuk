@@ -97,7 +97,7 @@ def prepare_epoch_train_data(train_ratings, nb_items, args):
     del neg_users, neg_items
 
     # shuffle prepared data and split into batches
-    epoch_indices = torch.randperm(train_users_end - train_users_begin, device='cuda:{}'.format(args.local_rank))
+    epoch_indices = torch.randperm(train_users_end - train_users_begin, device='cpu')
     epoch_indices += train_users_begin
 
     epoch_users = epoch_users[epoch_indices]

@@ -121,7 +121,7 @@ def main():
     torch.save(test_ratings, args.output+'/test_ratings.pt')
 
     sampler = _TestNegSampler(train_ratings.cpu().numpy(), args.valid_negative)
-    test_negs = sampler.generate().cuda()
+    test_negs = sampler.generate()
     test_negs = test_negs.reshape(-1, args.valid_negative)
     torch.save(test_negs, args.output+'/test_negatives.pt')
 

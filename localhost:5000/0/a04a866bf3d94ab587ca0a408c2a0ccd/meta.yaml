@@ -1,0 +1,15 @@
+artifact_uri: localhost:5000/0/a04a866bf3d94ab587ca0a408c2a0ccd/artifacts
+end_time: 1597657368899
+entry_point_name: ''
+experiment_id: '0'
+lifecycle_stage: active
+name: ''
+run_id: a04a866bf3d94ab587ca0a408c2a0ccd
+run_uuid: a04a866bf3d94ab587ca0a408c2a0ccd
+source_name: ''
+source_type: 4
+source_version: ''
+start_time: 1597657368855
+status: 3
+tags: []
+user_id: ubuntu

@@ -1,0 +1,15 @@
+artifact_uri: file:///home/ubuntu/NCF/mlruns/0/ed5d9b6e45384216a8e5698edd8d63b4/artifacts
+end_time: 1597656697243
+entry_point_name: ''
+experiment_id: '0'
+lifecycle_stage: active
+name: ''
+run_id: ed5d9b6e45384216a8e5698edd8d63b4
+run_uuid: ed5d9b6e45384216a8e5698edd8d63b4
+source_name: ''
+source_type: 4
+source_version: ''
+start_time: 1597656694421
+status: 3
+tags: []
+user_id: ubuntu

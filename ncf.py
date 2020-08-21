@@ -49,9 +49,16 @@ from neumf import NeuMF
 # from apex.parallel import DistributedDataParallel as DDP
 # from apex import amp
 
+import mlflow
+
+mlflow.set_tracking_uri("http://localhost:5000")
+
+
 def parse_args():
     parser = ArgumentParser(description="Train a Nerual Collaborative"
                                         " Filtering model")
+    parser.add_argument('--desc', type=str)
+    parser.add_argument('--threads', type=int)
     parser.add_argument('--data', type=str,
                         help='Path to test and training data files')
     parser.add_argument('-e', '--epochs', type=int, default=30,
@@ -151,17 +158,17 @@ def val_epoch(model, x, y, dup_mask, real_indices, K, samples_per_user, num_user
 
 
 def main():
+    
     args = parse_args()
     init_distributed(args)
+    print(args.desc)
+    mlflow.start_run(run_name=args.desc)
+    mlflow.log_param('batch_size', args.batch_size)
+    mlflow.log_param('num_threads', args.threads)
+    mlflow.log_param('num_of_epochs', args.epochs)
 
-#     if args.local_rank == 0:
-#         dllogger.init(backends=[dllogger.JSONStreamBackend(verbosity=dllogger.Verbosity.VERBOSE,
-#                                                            filename=args.log_path),
-#                                 dllogger.StdOutBackend(verbosity=dllogger.Verbosity.VERBOSE)])
-#     else:
-#         dllogger.init(backends=[])
-
-#     dllogger.log(data=vars(args), step='PARAMETER')
+    torch.set_num_threads(args.threads)    
+    
     print(f"{vars(args)} step='PARAMETER'")
 
     if args.seed is not None:
@@ -192,8 +199,6 @@ def main():
 
     test_users, test_items, dup_mask, real_indices = dataloading.create_test_data(test_ratings, test_negs, args)
 
-    # make pytorch memory behavior more consistent later
-    #torch.cuda.empty_cache()
 
     # Create model
     model = NeuMF(nb_users, nb_items,
@@ -205,16 +210,11 @@ def main():
                           betas=(args.beta1, args.beta2), eps=args.eps)
 
     criterion = nn.BCEWithLogitsLoss(reduction='none') # use torch.mean() with dim later to avoid copy to host
-    # Move model and loss to GPU
-#     model = model.cuda()
-#     criterion = criterion.cuda()
 
     if args.amp:
         model, optimizer = amp.initialize(model, optimizer, opt_level="O2",
                                           keep_batchnorm_fp32=False, loss_scale='dynamic')
 
-    if args.distributed:
-        pass #model = DDP(model)
 
     local_batch = args.batch_size // args.world_size
     traced_criterion = torch.jit.trace(criterion.forward,
@@ -237,9 +237,7 @@ def main():
         eval_size = all_test_users * (valid_negative + 1)
         eval_throughput = eval_size / val_time
 
-#         dllogger.log(step=tuple(), data={'best_eval_throughput' : eval_throughput,
-#                                          'hr@10' : hr})
-        log_data = data={'best_eval_throughput' : eval_throughput, 'hr@10' : hr}
+        log_data = data={'best_eval_throughput' : eval_throughput, 'test_hr_at_10' : hr}
         print(log_data)
         return
     
@@ -293,19 +291,13 @@ def main():
         eval_throughput = eval_size / val_time
         eval_throughputs.append(eval_throughput)
 
-#         dllogger.log(step=(epoch,),
-#                      data = {'train_throughput': train_throughput,
-#                              'hr@10': hr,
-#                              'train_epoch_time': train_time,
-#                              'validation_epoch_time': val_time,
-#                              'eval_throughput': eval_throughput})
-
         log_data = {'train_throughput': train_throughput,
-                             'hr@10': hr,
+                             'hr_at_10': hr,
                              'train_epoch_time': train_time,
                              'validation_epoch_time': val_time,
                              'eval_throughput': eval_throughput}
         print(log_data)
+        mlflow.log_metrics(log_data, epoch)
 
         if hr > max_hr and args.local_rank == 0:
             max_hr = hr
@@ -323,25 +315,17 @@ def main():
                 break
 
     if args.local_rank == 0:
-#         dllogger.log(data={'best_train_throughput': max(train_throughputs),
-#                            'best_eval_throughput': max(eval_throughputs),
-#                            'mean_train_throughput': np.mean(train_throughputs),
-#                            'mean_eval_throughput': np.mean(eval_throughputs),
-#                            'best_accuracy': max_hr,
-#                            'best_epoch': best_epoch,
-#                            'time_to_target': time.time() - main_start_time,
-#                            'time_to_best_model': best_model_timestamp - main_start_time},
-#                      step=tuple())
         log_data = {'best_train_throughput': max(train_throughputs),
                            'best_eval_throughput': max(eval_throughputs),
                            'mean_train_throughput': np.mean(train_throughputs),
                            'mean_eval_throughput': np.mean(eval_throughputs),
                            'best_accuracy': max_hr,
                            'best_epoch': best_epoch,
-                           'time_to_target': time.time() - main_start_time,
-                           'time_to_best_model': best_model_timestamp - main_start_time}
+                           'time_to_target': time.time() - main_start_time}
         print(log_data)
+        mlflow.log_metrics(log_data)
 
+    mlflow.end_run()
 
 if __name__ == '__main__':
     main()

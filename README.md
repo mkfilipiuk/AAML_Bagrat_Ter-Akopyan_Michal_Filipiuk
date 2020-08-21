@@ -19,10 +19,15 @@ git clone https://github.com/mkfilipiuk/AAML_Bagrat_Ter-Akopyan_Michal_Filipiuk
 cd AAML_Bagrat_Ter-Akopyan_Michal_Filipiuk
 ```
 
-2. Create an Anaconda virtual environment:
+2. In case of using a Linux machine you can create an Anaconda virtual environment from the environment.yml:
+```bash
+conda env create -f environment.yml
+```
+Otherwise:
 ```bash
 conda create -n iaaml_ncf python=3.6
 ```
+and install missing dependencies manually from the environment.yml
 
 3. Activate the Anaconda virtual environment:
 ```bash

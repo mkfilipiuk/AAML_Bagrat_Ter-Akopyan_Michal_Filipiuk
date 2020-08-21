@@ -34,7 +34,7 @@ set -e
 set -x
 
 DATASET_NAME=${1:-'ml-20m'}
-RAW_DATADIR=${2:-'/data'}
+RAW_DATADIR=${2:-'./data'}
 CACHED_DATADIR=${3:-"${RAW_DATADIR}/cache/${DATASET_NAME}"}
 
 # you can add another option to this case in order to support other datasets

@@ -69,4 +69,8 @@ This will result in a checkpoint file being written to `/data/checkpoints/model.
 ```bash
 jupyter notebook
 ```
-open the training.ipynb and run the cells
+open the `training.ipynb` and run the cells
+
+8. To reproduce the plots:
+- open the `create_plots.ipynb`
+- run the cells

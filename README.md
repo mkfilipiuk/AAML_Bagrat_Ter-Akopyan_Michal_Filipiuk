@@ -65,7 +65,7 @@ mlflow server
 python -m torch.distributed.launch --nproc_per_node=8 --use_env ncf.py --data ./data/cache/ml-20m --checkpoint_dir ./data/checkpoints/
 ```
 
-This will result in a checkpoint file being written to `/data/checkpoints/model.pth`.
+This will result in a checkpoint file being written to `./data/checkpoints/model.pth`.
 
 7. To run the whole scripts for reproducing the complete results:
 ```bash

@@ -41,7 +41,8 @@ The preprocessed train and test data is then saved in PyTorch binary format to b
 
 No data augmentation techniques are used.
 
-To download and preprocess the ML-20m dataset you can run:
+Download the data https://grouplens.org/datasets/movielens/20m/ and put it into the ./data directory
+To preprocess the ML-20m dataset you can run:
 
 ```bash
 ./prepare_dataset.sh

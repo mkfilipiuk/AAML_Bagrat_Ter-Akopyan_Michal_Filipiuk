@@ -49,7 +49,7 @@ To preprocess the ML-20m dataset you can run:
 ./prepare_dataset.sh
 ```
 
-Note: This command will return immediately without downloading anything if the data is already present in the `/data` directory.
+Note: This command will return immediately without downloading anything if the data is already present in the `./data` directory.
 
 This will store the preprocessed training and evaluation data in the `./data` directory so that it can be later
 used to train the model (by passing the appropriate `--data` argument to the `ncf.py` script).
@@ -62,7 +62,7 @@ mlflow server
 6. Start training.
 
 ```bash
-python -m torch.distributed.launch --nproc_per_node=8 --use_env ncf.py --data /data/cache/ml-20m --checkpoint_dir /data/checkpoints/
+python -m torch.distributed.launch --nproc_per_node=8 --use_env ncf.py --data ./data/cache/ml-20m --checkpoint_dir /data/checkpoints/
 ```
 
 This will result in a checkpoint file being written to `/data/checkpoints/model.pth`.
